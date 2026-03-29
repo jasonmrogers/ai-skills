@@ -77,6 +77,13 @@ git push origin main
 
 If push fails, report and stop — do not force push.
 
+Then remove every successfully merged worktree and its branch:
+```bash
+git worktree remove --force .claude/worktrees/[worktree-name]
+git branch -d [worktree-branch]
+```
+Stale worktrees accumulate quickly and block future waves — always clean up.
+
 ## Step 7: Update the task index
 
 For each completed task, update `specs/{{FEATURE_SLUG}}-tasks.md`:
