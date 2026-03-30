@@ -99,6 +99,18 @@ Print:
 - How many tasks ran, which succeeded/failed
 - Any native-only criteria needing manual validation
 - Current progress (X / N done)
+
+Then a **How to demo this wave** section — for each completed task that produced something visible or testable, give concrete step-by-step instructions:
+
+### Task NNN — [title]
+**What's new:** [one sentence]
+**How to see it:**
+1. [exact command or navigation step]
+2. [what to look for]
+
+For backend tasks (API routes, DB logic), show a curl example or note "covered by unit tests". Skip pure infra tasks with no observable output.
+
+Then:
 - Newly unblocked tasks (next wave)
 - Command to continue: `./scripts/next-wave.sh`
 

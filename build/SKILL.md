@@ -219,9 +219,9 @@ Re-run the full test suite after any new tests or fixes.
 
 ## Phase 5: Mark complete and report
 
-**Commit all changes**
+**Commit all changes — do this first, before anything else**
 
-Stage and commit everything in the working tree:
+This is the most critical step. The orchestrator cannot merge your work without a commit. Do not skip it, do not defer it, do not do it last.
 
 ```bash
 git add -A
@@ -232,25 +232,20 @@ git commit -m "Task NNN — [short title]
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
+Immediately verify the commit succeeded:
+
+```bash
+git log --oneline -1
+```
+
+If `git add -A` is blocked by sandbox restrictions, use explicit paths for each file you created or modified:
+
+```bash
+git add path/to/file1 path/to/file2 ...
+git commit -m "..."
+```
+
 Do not push — the orchestrator owns pushing after merging all worktrees in the wave.
-
-**Update the task file**
-In `specs/<feature-name>-tasks.md`, mark the task as complete:
-
-```markdown
-## Task 007 — [title] ✅
-```
-
-Add a completion note below the task:
-
-```markdown
-**Completed:** [date]
-**Files changed:** [list]
-**Decisions made:** [any non-obvious choices not specified in the task]
-**Follow-up tasks identified:** [anything surfaced during review that should be a new task]
-```
-
-If any follow-up tasks were identified during review, append them to the task file as new tasks with appropriate dependency links.
 
 **Final report**
 
