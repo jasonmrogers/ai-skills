@@ -44,7 +44,7 @@ Note the commands you'll use for: unit tests, integration tests (if separate), f
 **Detect whether this task requires visual validation**
 Check the task's `Layer:` field. If it includes `ui-page` or `ui-component`, this task requires visual validation in Phase 2.5. Note it now so you don't skip it later.
 
-Also check whether the task involves **native-only features** that cannot render in a browser: AirPlay, Apple Sign-In, Google OAuth, RevenueCat IAP, push notifications, haptics, camera. If so, mark those acceptance criteria as "native-only — manual validation required" and skip Playwright for them specifically.
+Also check whether the task involves features that can't render in a standard web browser (native device APIs, platform-specific SDKs, hardware sensors, etc.). These need a different testing tier — simulator/emulator or structured manual testing — not a skip. The QE engineer in Phase 4 owns writing those tests.
 
 ---
 
@@ -93,20 +93,20 @@ Do not proceed to Phase 2.5 (or Phase 3 if no UI) until the full test suite is g
 
 Skip this phase entirely if the task layer does not include `ui-page` or `ui-component`.
 
-**Goal:** confirm the implemented screen or component looks correct against the acceptance criteria before handing off to code review. Playwright is used in all cases — the approach varies by project type.
+**Goal:** confirm the implemented screen or component looks correct and behaves correctly against the acceptance criteria before handing off to code review. Use Playwright for anything that can run in a browser. Features that require a native runtime or hardware get covered in Phase 4 by the QE engineer — they are not skipped.
 
 ### Step 1: Identify the dev server and URL
 
-Determine how to run the app in a browser based on the project type:
+Check `CLAUDE.md` for the dev server command and port. Common patterns:
 
 | Project type | How to detect | Dev server command | Local URL |
 |---|---|---|---|
-| Next.js / web | `next` in `package.json` dependencies | `npm run dev` | `http://localhost:3000` |
-| Expo (React Native) | `expo` in `package.json` dependencies | `npx expo start --web --port 8081` | `http://localhost:8081` |
+| Next.js / web | `next` in `package.json` | `npm run dev` | `http://localhost:3000` |
+| Expo (React Native) | `expo` in `package.json` | `npx expo start --web --port 8081` | `http://localhost:8081` |
 | Vite / React | `vite` in `package.json` | `npm run dev` | `http://localhost:5173` |
 | Other | Check `scripts.dev` or `scripts.start` | per package.json | per config |
 
-For **native-only** Expo features (AirPlay, Apple Sign-In, Google OAuth, RevenueCat IAP, push notifications, haptics, camera, native permissions), the Expo web output cannot render them. Flag those acceptance criteria as "native-only — manual validation required" and skip Playwright for them specifically.
+If the task's UI cannot render in a browser at all (e.g., it is entirely hardware-dependent), skip Phase 2.5 and note it — but Phase 4 QE must still cover it.
 
 ### Step 2: Install Playwright (first UI task only)
 
@@ -125,56 +125,72 @@ DEV_PID=$!
 npx wait-on http://localhost:[PORT] --timeout 30000
 ```
 
-### Step 4: Write a Playwright screenshot script
+### Step 4: Write Playwright interaction tests
 
-Create `e2e/screenshots/task-NNN.spec.ts`. The script should:
-- Navigate to the route that renders the new screen or component
-- Wait for a key element to be visible (`waitForSelector`) — never use fixed sleeps
-- Take a full-page screenshot saved to `specs/screenshots/task-NNN-default.png`
-- Take additional screenshots for each distinct UI state in the acceptance criteria (empty state, loaded state, error state, offline state, etc.)
+Create `e2e/task-NNN.spec.ts`. These tests must exercise real user behavior — not just load a page and screenshot it. Each test should navigate, interact, and assert on outcomes.
 
 ```ts
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-test('task-NNN: [screen name] — default state', async ({ page }) => {
+test('task-NNN: [flow description] — happy path', async ({ page }) => {
   await page.goto('http://localhost:[PORT]/[route]');
-  await page.waitForSelector('[data-testid="[key-element]"]');  // web: data-testid; Expo web: testID prop renders as data-testid
-  await page.screenshot({ path: 'specs/screenshots/task-NNN-default.png', fullPage: true });
+  await page.waitForSelector('[data-testid="[key-element]"]');
+
+  // Interact with the UI
+  await page.tap('[data-testid="some-button"]');
+  await page.fill('[data-testid="some-input"]', 'test value');
+  await page.tap('[data-testid="submit-button"]');
+
+  // Assert on the outcome
+  await expect(page.locator('[data-testid="success-message"]')).toBeVisible();
+  await expect(page).toHaveURL(/expected-route/);
 });
 
-test('task-NNN: [screen name] — [other state]', async ({ page }) => {
-  // set up state (mock API, set localStorage, etc.), then screenshot
-  await page.screenshot({ path: 'specs/screenshots/task-NNN-[state].png', fullPage: true });
+test('task-NNN: [flow description] — error state', async ({ page }) => {
+  await page.goto('http://localhost:[PORT]/[route]');
+  await page.waitForSelector('[data-testid="[key-element]"]');
+
+  // Trigger the error condition
+  await page.tap('[data-testid="submit-button"]');  // submit without filling required fields
+
+  // Assert the error is shown
+  await expect(page.locator('[data-testid="error-message"]')).toBeVisible();
 });
 ```
 
-### Step 5: Run and capture
+**What to test:**
+- The primary happy path: user completes the flow successfully
+- Navigation: tapping tabs, back buttons, and links actually changes the route
+- Key error states from the task's acceptance criteria
+- Any distinct UI states (empty, loaded, error) that are in scope
+
+**Expo/React Native note:** `testID` props render as `data-testid` in the browser. Use those selectors. Use `page.tap()` for touch targets.
+
+**Screenshots as secondary artifacts:** After each meaningful assertion, optionally take a screenshot for debugging — but the test must pass or fail based on assertions, not screenshots.
+
+```ts
+await page.screenshot({ path: 'specs/screenshots/task-NNN-[state].png', fullPage: true });
+```
+
+### Step 5: Run and verify
+
 ```bash
-npx playwright test e2e/screenshots/task-NNN.spec.ts
+npx playwright test e2e/task-NNN.spec.ts
 kill $DEV_PID
 ```
 
-### Step 6: Inspect screenshots
+If a test fails because an element isn't interactive (click does nothing, navigation doesn't happen), fix the implementation — that is a real bug.
 
-Use the Read tool to view each saved screenshot. For each one, verify against the task's acceptance criteria:
-- Does the layout match what was specified?
-- Are the correct elements present and in the right order?
-- Are empty states, loading states, and error states handled visually?
-- Are interactive elements (buttons, inputs) clearly visible and appropriately sized?
-- Does the visual style match the existing design system (colors, typography, spacing)?
+### Step 6: Note native-only criteria
 
-If something looks wrong, fix the implementation and re-run. Do not proceed with a screenshot that fails an acceptance criterion.
-
-### Step 7: Note native-only criteria
-
-For any acceptance criteria that cannot be validated via web, add a note in the task file:
+For any acceptance criteria that cannot be validated via web browser, add a note in the task file:
 ```
 ⚠️ Native-only: [criterion] — requires manual validation on device/simulator
 ```
 
-### Step 8: Save artifacts
+### Step 7: Save artifacts
 
-Screenshots go in `specs/screenshots/`. Check `CLAUDE.md` or `.gitignore` for whether they should be committed — if no guidance exists, gitignore them.
+E2E specs go in `e2e/`. Screenshots go in `specs/screenshots/`. Check `CLAUDE.md` or `.gitignore` for commit guidance — if none exists, gitignore screenshots but commit the spec files.
 
 ---
 
@@ -200,20 +216,25 @@ Re-run the full test suite after implementing any fixes. Do not proceed until te
 
 ---
 
-## Phase 4: QE review loop
+## Phase 4: QE — write tests and review coverage
 
-Launch the `qe-engineer` agent with the same file list and task summary.
+Launch the `qe-engineer` agent with:
+- The task file path and task number
+- The list of files you created or modified
+- The routes, screens, or API endpoints this task affects
 
-Apply the same negotiation protocol as Phase 3:
-- Agree → fix it
-- Disagree → counter-argue with specifics
-- After two rounds on the same point with no new information → document and move on (unless it's a gap in a critical path)
+The QE engineer will write tests covering all tiers appropriate for this project, then review the overall test strategy for gaps. Nothing should be left as "untested" — if something can't be automated, it gets a structured manual test script, not a vague flag.
 
-**Additional QE-specific judgment:**
-- If QE identifies a missing test for an edge case that is genuinely in scope per the task or PRD, write the test.
-- If QE identifies a missing test for a scenario that was explicitly descoped or is out of this task's slice, note it as a follow-up task in the tasks file rather than expanding scope now.
+**When you get the report back:**
 
-Re-run the full test suite after any new tests or fixes.
+- **Tests written** → Run them. If any fail because something is genuinely broken (not a setup issue), fix the implementation and re-run.
+- **Coverage gaps** → Apply the same judgment as code review:
+  - In scope per the task or PRD → write the test
+  - Explicitly out of scope or in a future slice → note it as a follow-up task in the tasks file
+  - Disagree → counter-argue with specifics
+- **Manual test scripts** → Include them in the task file's Notes section so they travel with the work
+
+Re-run the full test suite after any fixes or new tests. Do not proceed until everything that can be automated is green.
 
 ---
 
@@ -256,8 +277,8 @@ Do not push — the orchestrator owns pushing after merging all worktrees in the
 **Files changed:** [list with brief description of each]
 **Tests:** [X passing, test commands used]
 
-**Visual validation:** [list of screenshots taken, path to each, and what was verified]
-**Native-only criteria skipped:** [list any acceptance criteria that require device/simulator]
+**Visual validation:** [list of interaction tests written, what each verifies]
+**Non-browser criteria:** [any acceptance criteria that need simulator/device tests — covered by QE in Phase 4]
 
 **Code review:** [resolved N issues, 1 documented disagreement on X]
 **QE review:** [resolved N gaps, 1 follow-up task added for Y]
