@@ -181,12 +181,38 @@ kill $DEV_PID
 
 If a test fails because an element isn't interactive (click does nothing, navigation doesn't happen), fix the implementation — that is a real bug.
 
-### Step 6: Note native-only criteria
+### Step 6: Run Maestro simulator flows (iOS projects only)
 
-For any acceptance criteria that cannot be validated via web browser, add a note in the task file:
+**Determine if this step applies:** Check `package.json` for `"expo"` or `"react-native"` as a dependency, or look for an `app.config.ts` / `app.json` in the project root. If neither is present, skip this step entirely — Maestro is only for iOS/React Native projects, not web or backend projects.
+
+For iOS / React Native / Expo projects, **every acceptance criterion must be validated** — either via Playwright (web) or Maestro (iOS simulator). "It only works on native" is never an acceptable outcome. Write and run Maestro flows for anything Playwright cannot cover.
+
+**Check if Maestro is set up:**
+```bash
+maestro --version
+ls .maestro/
 ```
-⚠️ Native-only: [criterion] — requires manual validation on device/simulator
+
+If Maestro is not installed or `.maestro/` does not exist, set STATUS to `blocked` and report what's missing — do not proceed.
+
+**Write a Maestro flow for this task:**
+
+Create `.maestro/task-NNN.yaml`. All flows that require an authenticated user must start with the shared login flow:
+```yaml
+appId: com.your.app
+---
+- runFlow: .maestro/flows/_login.yaml   # if auth is required
+- [your task-specific steps]
 ```
+
+Each flow must cover every acceptance criterion from the task file that Playwright did not already cover. Assert on visible elements, navigation outcomes, and state changes — not just that the screen renders.
+
+**Run the flow:**
+```bash
+maestro test .maestro/task-NNN.yaml
+```
+
+If a flow fails because an element is missing or a tap does nothing, fix the implementation — that is a real bug.
 
 ### Step 7: Save artifacts
 
@@ -277,8 +303,8 @@ Do not push — the orchestrator owns pushing after merging all worktrees in the
 **Files changed:** [list with brief description of each]
 **Tests:** [X passing, test commands used]
 
-**Visual validation:** [list of interaction tests written, what each verifies]
-**Non-browser criteria:** [any acceptance criteria that need simulator/device tests — covered by QE in Phase 4]
+**Playwright tests:** [list of interaction tests written, what each verifies]
+**Maestro flows:** [flow files written and run, what each verifies — or "n/a: not an iOS project"]
 
 **Code review:** [resolved N issues, 1 documented disagreement on X]
 **QE review:** [resolved N gaps, 1 follow-up task added for Y]
