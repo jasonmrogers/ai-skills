@@ -87,6 +87,8 @@ run full test suite / CI command
 
 Do not proceed to Phase 2.5 (or Phase 3 if no UI) until the full test suite is green.
 
+**→ Phase 2 is complete when: the full test suite is green. Immediately proceed to Phase 2.5 (if UI task) or Phase 3 (if not).**
+
 ---
 
 ## Phase 2.5: Visual validation (UI tasks only)
@@ -224,6 +226,8 @@ E2E specs go in `e2e/`. Screenshots go in `specs/screenshots/`. Check `CLAUDE.md
 
 Launch the `code-reviewer` agent with the list of files you changed and a summary of what the task required.
 
+**IMPORTANT: The reviewer's report is INPUT to your work, not the output of this task. When it comes back, you must act on it — then continue to Phase 4. Do not return the review report as your result. Do not stop here.**
+
 **When you get the report back:**
 
 For each issue raised, make an independent judgment:
@@ -238,7 +242,9 @@ For each issue raised, make an independent judgment:
 3. If the reviewer maintains their position after your counter-argument, evaluate whether they've introduced new information. If yes, reconsider. If no — and this is a 🔵 Suggestion or 🟡 Warning, not a 🔴 Critical — you may document the disagreement as a code comment or task note and move on.
 4. 🔴 Critical issues must be resolved. If you genuinely disagree with a Critical, escalate to a note in the task file and flag for human review rather than shipping the disputed code.
 
-Re-run the full test suite after implementing any fixes. Do not proceed until tests are green again.
+Re-run the full test suite after implementing any fixes. Do not move on until tests are green.
+
+**→ Phase 3 is complete when: you have processed every issue in the review, applied all agreed fixes, tests are green, and you can summarize in 1-2 sentences what you changed (or "no changes needed"). Write that summary, then immediately proceed to Phase 4.**
 
 ---
 
@@ -251,6 +257,8 @@ Launch the `qe-engineer` agent with:
 
 The QE engineer will write tests covering all tiers appropriate for this project, then review the overall test strategy for gaps. Nothing should be left as "untested" — if something can't be automated, it gets a structured manual test script, not a vague flag.
 
+**IMPORTANT: The QE report is INPUT to your work, not the output of this task. Act on it, then continue to Phase 5. Do not stop here.**
+
 **When you get the report back:**
 
 - **Tests written** → Run them. If any fail because something is genuinely broken (not a setup issue), fix the implementation and re-run.
@@ -260,7 +268,9 @@ The QE engineer will write tests covering all tiers appropriate for this project
   - Disagree → counter-argue with specifics
 - **Manual test scripts** → Include them in the task file's Notes section so they travel with the work
 
-Re-run the full test suite after any fixes or new tests. Do not proceed until everything that can be automated is green.
+Re-run the full test suite after any fixes or new tests. Do not move on until everything that can be automated is green.
+
+**→ Phase 4 is complete when: all automated tests pass, coverage gaps are addressed or documented, and you can summarize in 1-2 sentences what was added or deferred. Write that summary, then immediately proceed to Phase 5.**
 
 ---
 
