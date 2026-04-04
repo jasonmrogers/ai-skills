@@ -77,10 +77,10 @@ git push origin main
 
 If push fails, report and stop — do not force push.
 
-Then remove every successfully merged worktree and its branch:
+Then prune stale worktree references and delete merged branches:
 ```bash
-git worktree remove --force .claude/worktrees/[worktree-name]
-git branch -d [worktree-branch]
+git worktree prune
+git branch | grep worktree-agent | xargs git branch -d
 ```
 Stale worktrees accumulate quickly and block future waves — always clean up.
 

@@ -1,11 +1,11 @@
 ---
 name: build
-description: Pick up a task from the task breakdown, implement it fully, iterate until tests pass, then negotiate with the code-reviewer and qe-engineer agents until all feedback is resolved. Invoked with a task ID or task description.
+description: Implement a single task from a PRD task breakdown — orient, implement, get tests green, validate visually (Playwright + Maestro), commit, and report. The orchestrator owns code review and QE after the commit. Invoked with a task ID or task description.
 ---
 
 # Build
 
-You are a senior engineer executing a single task from a PRD task breakdown. Your job is to implement the task completely, get tests green, and work through code review and QE feedback the way a professional would — taking valid criticism seriously, pushing back on disagreements with reasoning, and reaching consensus before moving on.
+You are a senior engineer executing a single task from a PRD task breakdown. Your job is to implement the task completely, get tests green, validate visually, and commit clean work. Code review and QE are handled by the orchestrator after your commit — your job ends at Phase 4.
 
 Work through these phases in order.
 
@@ -85,17 +85,17 @@ run full test suite / CI command
 - If tests themselves seem wrong or are testing the wrong thing, note it but do not modify existing passing tests — flag it for the QE review
 - If you're stuck on the same test failure after 3 attempts, step back and re-read the task + PRD. The problem is almost always a misread requirement, not a syntax issue.
 
-Do not proceed to Phase 2.5 (or Phase 3 if no UI) until the full test suite is green.
+Do not proceed to Phase 3 (or Phase 4 if no UI) until the full test suite is green.
 
-**→ Phase 2 is complete when: the full test suite is green. Immediately proceed to Phase 2.5 (if UI task) or Phase 3 (if not).**
+**→ Phase 2 is complete when: the full test suite is green. Immediately proceed to Phase 3 (if UI task) or Phase 4 (if not).**
 
 ---
 
-## Phase 2.5: Visual validation (UI tasks only)
+## Phase 3: Visual validation (UI tasks only)
 
 Skip this phase entirely if the task layer does not include `ui-page` or `ui-component`.
 
-**Goal:** confirm the implemented screen or component looks correct and behaves correctly against the acceptance criteria before handing off to code review. Use Playwright for anything that can run in a browser. Features that require a native runtime or hardware get covered in Phase 4 by the QE engineer — they are not skipped.
+**Goal:** confirm the implemented screen or component looks correct and behaves correctly against the acceptance criteria before handing off to code review. Use Playwright for anything that can run in a browser. Features that require a native runtime or hardware get covered by the QE engineer — they are not skipped.
 
 ### Step 1: Identify the dev server and URL
 
@@ -222,59 +222,7 @@ E2E specs go in `e2e/`. Screenshots go in `specs/screenshots/`. Check `CLAUDE.md
 
 ---
 
-## Phase 3: Code review loop
-
-Launch the `code-reviewer` agent with the list of files you changed and a summary of what the task required.
-
-**IMPORTANT: The reviewer's report is INPUT to your work, not the output of this task. When it comes back, you must act on it — then continue to Phase 4. Do not return the review report as your result. Do not stop here.**
-
-**When you get the report back:**
-
-For each issue raised, make an independent judgment:
-
-- **Agree**: The reviewer is right. Fix it, no discussion needed.
-- **Disagree**: You believe your approach is correct. Prepare a specific counter-argument — cite the task spec, the PRD, an existing pattern in the codebase, or a technical reason. Do not just say "I think it's fine."
-- **Tradeoff**: The reviewer raises a valid concern but fixing it conflicts with task scope, existing patterns, or a deliberate PRD decision. Acknowledge the concern, explain the constraint, and propose either a follow-up task or an in-line comment documenting the tradeoff.
-
-**Negotiation protocol:**
-1. Implement all agreed fixes immediately.
-2. For each disagreement, present your counter-argument to the reviewer in a follow-up review request. Be specific: "I kept X because the PRD specifies Y" or "The existing pattern in [file] does the same thing."
-3. If the reviewer maintains their position after your counter-argument, evaluate whether they've introduced new information. If yes, reconsider. If no — and this is a 🔵 Suggestion or 🟡 Warning, not a 🔴 Critical — you may document the disagreement as a code comment or task note and move on.
-4. 🔴 Critical issues must be resolved. If you genuinely disagree with a Critical, escalate to a note in the task file and flag for human review rather than shipping the disputed code.
-
-Re-run the full test suite after implementing any fixes. Do not move on until tests are green.
-
-**→ Phase 3 is complete when: you have processed every issue in the review, applied all agreed fixes, tests are green, and you can summarize in 1-2 sentences what you changed (or "no changes needed"). Write that summary, then immediately proceed to Phase 4.**
-
----
-
-## Phase 4: QE — write tests and review coverage
-
-Launch the `qe-engineer` agent with:
-- The task file path and task number
-- The list of files you created or modified
-- The routes, screens, or API endpoints this task affects
-
-The QE engineer will write tests covering all tiers appropriate for this project, then review the overall test strategy for gaps. Nothing should be left as "untested" — if something can't be automated, it gets a structured manual test script, not a vague flag.
-
-**IMPORTANT: The QE report is INPUT to your work, not the output of this task. Act on it, then continue to Phase 5. Do not stop here.**
-
-**When you get the report back:**
-
-- **Tests written** → Run them. If any fail because something is genuinely broken (not a setup issue), fix the implementation and re-run.
-- **Coverage gaps** → Apply the same judgment as code review:
-  - In scope per the task or PRD → write the test
-  - Explicitly out of scope or in a future slice → note it as a follow-up task in the tasks file
-  - Disagree → counter-argue with specifics
-- **Manual test scripts** → Include them in the task file's Notes section so they travel with the work
-
-Re-run the full test suite after any fixes or new tests. Do not move on until everything that can be automated is green.
-
-**→ Phase 4 is complete when: all automated tests pass, coverage gaps are addressed or documented, and you can summarize in 1-2 sentences what was added or deferred. Write that summary, then immediately proceed to Phase 5.**
-
----
-
-## Phase 5: Mark complete and report
+## Phase 4: Mark complete and report
 
 **Commit all changes — do this first, before anything else**
 
@@ -316,14 +264,11 @@ Do not push — the orchestrator owns pushing after merging all worktrees in the
 **Playwright tests:** [list of interaction tests written, what each verifies]
 **Maestro flows:** [flow files written and run, what each verifies — or "n/a: not an iOS project"]
 
-**Code review:** [resolved N issues, 1 documented disagreement on X]
-**QE review:** [resolved N gaps, 1 follow-up task added for Y]
-
 **Decisions made:**
 - [Decision 1 and why]
 - [Decision 2 and why]
 
-**Follow-up tasks added:** [Task IDs if any were appended]
+**Follow-up tasks identified:** [any noted during implementation, or "none"]
 
 **Demo:** [What can now be tested or shown as a result of this task]
 ```

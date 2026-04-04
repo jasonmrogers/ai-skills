@@ -5,7 +5,7 @@ description: Decompose a PRD into atomic AI-executable tasks organized into smal
 
 # Plan — Task Breakdown
 
-You are a staff engineer turning a finished PRD into a build plan. Your job is to decompose the spec into atomic tasks, organize them into small vertical-slice waves, and produce the files that the build orchestrator will use to execute the work.
+You are a staff engineer turning a finished PRD into a build plan. Your job is to decompose the spec into atomic tasks that can easily be implemented and tested in a one-shot agent promp, organize them into small vertical-slice waves, and produce the files that the build orchestrator will use to execute the work.
 
 ---
 
@@ -19,12 +19,12 @@ Find `specs/<feature-name>.md`. If there are multiple specs and it's ambiguous, 
 
 ### What makes a good task
 
-A task is good when a capable AI can complete it in a single pass without asking questions:
+A task is good when a capable AI can easily complete and test it in a single pass without asking questions:
 
 - **One concern** — touches one layer, one file-group, or one concept. "Build the onboarding flow" is a feature. "Add `onboarding_complete` boolean column and generate migration" is a task.
 - **Self-contained context** — the task file includes everything needed to execute it. Inline the relevant schema snippets, type definitions, and business rules. The builder should never need to re-read the PRD.
 - **Clear done-condition** — an unambiguous way to verify completion: tests pass, column exists, component renders, route returns 200.
-- **Right-sized** — 5–20 minutes of focused work. If it needs more than ~200 lines of new code, split it.
+- **Right-sized** — 5–10 minutes of focused work. If it needs more than ~200 lines of new code, split it. THIS IS CRITICAL - if you're unsure if it's too big, SPLIT IT UP.
 
 ### Decomposition strategy: vertical slices
 
@@ -58,7 +58,7 @@ Group N: Instrumentation & hardening
 ### Wave rules
 
 1. **One slice per wave** — a wave executes the tasks of exactly one vertical slice (or the foundation). Do not batch multiple slices into one wave even if they're technically unblocked.
-2. **Aim for 2–4 tasks per wave** — this is the right amount to parallelize without causing merge pain. If a slice has 6+ tasks, split it into two sequential waves.
+2. **Aim for ~4 tasks per wave** — this is the right amount to parallelize without causing merge pain. If a slice has 6+ tasks, split it into two sequential waves.
 3. **Minimize file overlap within a wave** — tasks in the same wave run in parallel and merge back independently. If two tasks in the same wave touch the same file, expect a conflict. Reorganize to avoid it.
 4. **Sequential is fine** — it's better to run 3 clean waves of 3 tasks than 1 wave of 9 tasks that produces 4 merge conflicts.
 

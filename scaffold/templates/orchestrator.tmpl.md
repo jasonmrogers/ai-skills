@@ -37,7 +37,12 @@ Read the task file at specs/{{FEATURE_SLUG}}-[NNN].md for full details.
 Read specs/{{FEATURE_SLUG}}.md (the PRD) for project context.
 Read CLAUDE.md for project conventions, stack, and test commands.
 
-Execute the task using the /build skill. Follow every phase in order.
+Execute the task using the /build skill. Follow every phase in order:
+Phase 0: Orient
+Phase 1: Implement
+Phase 2: Test loop (get tests green)
+Phase 3: Visual validation (if ui-page or ui-component layer)
+Phase 4: Mark complete and report
 
 When done, return a result in exactly this format:
 
@@ -45,32 +50,59 @@ TASK: [NNN]
 STATUS: done | failed | blocked
 FILES_CHANGED: [comma-separated list]
 TESTS: [X passing]
-E2E_TESTS: [paths to Playwright specs written, or "none"]
-NATIVE_ONLY: [criteria needing manual validation, or "none"]
+PLAYWRIGHT_TESTS: [paths written, or "n/a"]
+MAESTRO_FLOWS: [flows run and pass/fail, or "n/a"]
 DECISIONS: [non-obvious choices made]
 FOLLOW_UP_TASKS: [new tasks identified, or "none"]
 NOTES: [anything the orchestrator should know]
 ```
 
-## Step 6: Collect results
+## Step 6: Process each result as it arrives
 
-Wait for all background sub-agents to complete. For each:
-- **STATUS: done** → proceed to merge
-- **STATUS: failed** → note failure, skip merge, flag for human review
-- **STATUS: blocked** → note why, skip merge
+Do not wait for all sub-agents to finish before acting. As each background sub-agent completes, process it immediately through the full review → QE → merge loop.
 
-## Step 6.5: Merge worktrees and push
+For each completed sub-agent result:
 
-For each completed sub-agent, merge its worktree branch back to `main` **sequentially**:
+**If STATUS: failed or blocked** — note the reason, do not review or merge, flag for human review. Move on to the next result.
+
+**If STATUS: done** — run the following loop on the worktree branch returned by the agent:
+
+### 6a: Code review on implementation (on worktree branch)
+
+Spawn a `code-reviewer` sub-agent with the worktree branch path, list of files changed, and task number/title.
+
+**If 🔴 Critical issues found:**
+1. Spawn a fix sub-agent in the **same worktree** with the review report. Fix, run full test suite, commit.
+2. Re-spawn the code-reviewer to verify.
+3. Cap at **2 fix iterations**. If Criticals remain, mark `failed (review)` and skip merge.
+
+🟡 Warnings and 🔵 Suggestions: note in final report, do not block.
+
+### 6b: QE pass (on worktree branch)
+
+Spawn a `qe-engineer` sub-agent with the worktree branch path, task file, and files changed.
+
+The QE agent writes tests and commits them to the worktree branch. If tests reveal an implementation issue, it spawns a fix in the worktree before committing.
+
+### 6c: Final code review — implementation + tests (on worktree branch)
+
+Spawn a `code-reviewer` sub-agent with the full file list (implementation + QE tests). Note: "Final pass — please review both implementation and test code."
+
+**If 🔴 Critical issues found:** same fix loop as 6a, cap 2. If still failing, mark `failed (final review)` and skip merge.
+
+### 6d: Merge (only if 6a, 6b, and 6c passed)
 
 ```bash
 git checkout main
 git merge --no-ff [worktree-branch] -m "Merge Task NNN — [title]"
 ```
 
-If a merge has conflicts: stop, report the conflict, mark the task `failed (merge conflict)`, continue with remaining branches.
+If conflicts: report clearly, mark `failed (merge conflict)`, continue with remaining results.
 
-After all conflict-free merges:
+Repeat 6a–6d for each remaining sub-agent result.
+
+## Step 7: Push to origin
+
 ```bash
 git push origin main
 ```
@@ -84,7 +116,7 @@ git branch | grep worktree-agent | xargs git branch -d
 ```
 Stale worktrees accumulate quickly and block future waves — always clean up.
 
-## Step 7: Update the task index
+## Step 8: Update the task index
 
 For each completed task, update `specs/{{FEATURE_SLUG}}-tasks.md`:
 - Change status to `done` (or `failed`)
@@ -92,7 +124,7 @@ For each completed task, update `specs/{{FEATURE_SLUG}}-tasks.md`:
 
 If any sub-agent reported follow-up tasks, append them as new `todo` tasks with correct dependencies and assign them to an appropriate wave.
 
-## Step 8: Final report
+## Step 9: Final report
 
 Print:
 - How many tasks ran, which succeeded/failed
